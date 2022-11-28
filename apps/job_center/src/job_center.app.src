@@ -1,0 +1,15 @@
+{application, job_center,
+ [{description, "A simple job management service"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {job_center, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache-2.0"]},
+  {links, []}
+ ]}.
