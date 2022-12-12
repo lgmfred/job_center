@@ -30,6 +30,12 @@ job_done_test_() ->
     {"Signal that a work has been done and that moves it to done list",
       ?setup(fun job_done/1)}.
 
+-spec statistics_test_() -> tuple().
+statistics_test_() ->
+    {"Reports the status of the jobs in the queue and of jobs that "
+     "are in progress and that have been done",
+     ?setup(fun statistics/1)}.
+
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -131,6 +137,22 @@ job_done(_Pid) ->
     [?_assertEqual({[],[]}, {DL1, DL2}),
      ?_assertEqual(L1, lists:sort(DL3))].
 
+-spec statistics(pid()) -> [ok].
+statistics(_Pid) ->
+    #{queue := Q1, in_progress := PL1, done := DL1} = job_center:statistics(),
+    [job_center:add_job(X) || X <- [fun() -> Y end || Y <- lists:seq(1, 15)]],
+    [job_center:work_wanted() || _ <- lists:seq(1, 10)],
+    [job_center:job_done(N) || N <- lists:seq(1, 5)],
+    #{queue := Q2, in_progress := PL2, done := DL2} = job_center:statistics(),
+    Qn = [Xn || {Xn, _} <- queue:to_list(Q2)],
+    PLn = [Yn || {Yn, _} <- PL2],
+    DLn = [Zn || {Zn, _} <- DL2],
+    [?_assert(queue:is_empty(Q1)),
+     ?_assertEqual([], PL1),
+     ?_assertEqual([], DL1),
+     ?_assertEqual(lists:seq(11, 15), Qn),
+     ?_assertEqual(lists:seq(6, 10), lists:sort(PLn)),
+     ?_assertEqual(lists:seq(1, 5),lists:sort(DLn))].
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%

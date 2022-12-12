@@ -6,7 +6,7 @@
 -behaviour(application).
 
 -export([start/2, stop/1]).
--export([add_job/1, work_wanted/0, job_done/1]).
+-export([add_job/1, work_wanted/0, job_done/1, statistics/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Application behaviour
@@ -42,3 +42,7 @@ work_wanted() ->
 job_done(Int) ->
     job_center_serv:job_done(Int).
 
+%% @doc Add a statistics call to the application
+-spec statistics() -> map().
+statistics() ->
+    job_center_serv:statistics().

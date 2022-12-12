@@ -9,7 +9,8 @@
          stop/0,
          add_job/1,
          work_wanted/0,
-         job_done/1
+         job_done/1,
+         statistics/0
         ]).
 
 %% Internal API for tests
@@ -56,6 +57,10 @@ work_wanted() ->
 job_done(Int) ->
     gen_server:cast(?MODULE, {job_done, Int}).
 
+-spec statistics() -> map().
+statistics() ->
+    gen_server:call(?MODULE, statistics).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% GEN_SERVER CALLBACKS %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -81,6 +86,9 @@ handle_call(work_wanted, _From, State) ->
     end;
 handle_call(get_state, _From, State) ->
     {reply, State, State};
+handle_call(statistics, _From, State) ->
+    #{queue := Q, in_progress := Pl, done := Dl} = State,
+    {reply, #{queue => Q, in_progress => Pl, done => Dl}, State};
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
 
