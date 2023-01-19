@@ -36,6 +36,12 @@ statistics_test_() ->
      "are in progress and that have been done",
      ?setup(fun statistics/1)}.
 
+-spec worker_supervision_test_() -> tuple().
+worker_supervision_test_() ->
+    {"If a worker dies, the jobs (s)he was doing are returned to the "
+     "pool of jobs waiting to be done.",
+     ?setup(fun supervise_workers/1)}.
+
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% SETUP FUNCTIONS %%%
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -153,6 +159,28 @@ statistics(_Pid) ->
      ?_assertEqual(lists:seq(11, 15), Qn),
      ?_assertEqual(lists:seq(6, 10), lists:sort(PLn)),
      ?_assertEqual(lists:seq(1, 5),lists:sort(DLn))].
+
+-spec supervise_workers(pid()) -> [ok].
+supervise_workers(_Pid) ->
+    [job_center:add_job(X) || X <- [fun() -> Y end || Y <- lists:seq(1, 5)]],
+    Pid = spawn(fun() ->
+        [job_center:work_wanted() || _ <- lists:seq(1, 3)],
+        job_center:job_done(2),
+        timer:sleep(500)
+    end),
+    timer:sleep(100),
+    #{queue:=Q1, in_progress:=P1, done:=L1} = job_center:statistics(),
+    Val = erlang:exit(Pid, kill),
+    timer:sleep(100),
+    #{queue:=Q2, in_progress:=P2, done:=L2} = job_center:statistics(),
+    [?_assert(is_pid(Pid)),
+     ?_assertMatch([{4,_},{5,_}], queue:to_list(Q1)),
+     ?_assertMatch([{1,_},{3,_}], lists:sort(P1)),
+     ?_assertMatch([{2,_}], L1),
+     ?_assert(Val),
+     ?_assertMatch([{1,_},{3,_},{4,_},{5,_}], lists:sort(queue:to_list(Q2))),
+     ?_assert([] == P2),
+     ?_assertEqual(L1, L2)].
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%
