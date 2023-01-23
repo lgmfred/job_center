@@ -76,111 +76,102 @@ initially_empty_params(_Pid) ->
 
 -spec add_job(pid()) -> [ok].
 add_job(_Pid) ->
-    F1 = fun() -> some_job end,
-    F2 = fun(X) -> X * 2 end,
-    F3 = fun(X, Y) -> X * Y end,
-    L1 = [job_center:add_job(X) || X <- [F1, F2, F3]],
-    L2 = [Z || Z <- L1, is_integer(Z)],
+    F = fun(X) -> X end,
+    N1 = job_center:add_job(3, F(13)),
+    N2 = job_center:add_job(4, F(14)),
     #{queue := Q} = job_center_serv:get_state(),
-    L3 = queue:to_list(Q),
-    [?_assertEqual(L1, L2),
-     ?_assertEqual(L1, [1,2,3]),
-     ?_assert(queue:is_queue(Q)),
-     ?_assertEqual([{1,F1},{2,F2},{3,F3}], L3)].
+    L = queue:to_list(Q),
+    [?_assertEqual([1,2], [N1,N2]),
+     ?_assertEqual([{1,3,F(13)},{2,4,F(14)}], L)].
 
 -spec work_wanted(pid()) -> [ok].
 work_wanted(_Pid) ->
     J1 = job_center:work_wanted(),
     F1 = fun() -> uno end,
-    F2 = fun() -> 2 end,
-    F3 = fun() -> trois end,
-    L1 = [{1, F1}, {2, F2}, {3, F3}],
-    [job_center:add_job(X) || X <- [F1, F2, F3]],
-    L2 = [job_center:work_wanted() || _W <- lists:seq(1, 3)], 
-    J2 = job_center:work_wanted(),
-    job_center:add_job(fun() -> 77 * 7 end),
-    {N, Fun} = job_center:work_wanted(),
-    L3 = [Y() || {_, Y} <- L2],
-    [?_assertEqual(no, J1),
-     ?_assertEqual(no, J2),
-     ?_assertEqual(L1, L2),
-     ?_assertEqual([uno, 2, trois], L3),
-     ?_assert(is_integer(N)),
-     ?_assert(is_function(Fun)),
-     ?_assertEqual(539, Fun())
-    ].
+    F2 = fun() -> deux end,
+    job_center:add_job(2,F1),
+    job_center:add_job(3,F2),
+    J2 = [job_center:work_wanted() || _W <- lists:seq(1, 3)], 
+    ?_assertEqual([no,{1,2,F1},{2,3,F2},no], [J1|J2]).
 
 -spec queue_to_progress_list(pid()) -> [ok].
 queue_to_progress_list(_Pid) ->
     F1 = fun() -> 1 end,
-    N1 = job_center_serv:add_job(F1),
-    #{queue := Q1, in_progress := PL1} = job_center_serv:get_state(),
-    W1 = job_center:work_wanted(),
-    #{queue := Q2, in_progress := PL2} = job_center_serv:get_state(),
-    Lx = [fun() -> Xx end || Xx <- lists:seq(2, 5)],
-    L3 = [job_center:add_job(X) || X <- Lx],
-    #{queue := Q3, in_progress := [W1]} = job_center_serv:get_state(),
-    L4 = [job_center:work_wanted() || _Yy <- L3],
-    #{queue := Q4, in_progress := PL4} = job_center_serv:get_state(),
-    [?_assert(false == queue:is_empty(Q1)),
-     ?_assert(queue:member({N1, F1}, Q1)),
-     ?_assertEqual([], PL1),
-     ?_assert(queue:is_empty(Q2)),
-     ?_assert(lists:member(W1, PL2)),
-     ?_assertEqual(lists:zip(lists:seq(2, 5), Lx), queue:to_list(Q3)),
-     ?_assert(queue:is_empty(Q4)),
-     ?_assertEqual([W1|L4], lists:sort(PL4))].
+    F2 = fun() -> deux end,
+    1 = job_center:add_job(7,F1),
+    2 = job_center:add_job(3,F2),
+    #{queue:=Q1, in_progress:=L1} = job_center_serv:get_state(),
+    {1,7,F1} = job_center:work_wanted(),
+    #{queue:=Q2, in_progress:=L2} = job_center_serv:get_state(),
+    {2,3,F2} = job_center:work_wanted(),
+    #{queue:=Q3, in_progress:=L3} = job_center_serv:get_state(),
+    [?_assert([] == L1),
+     ?_assertEqual(queue:head(Q1), hd(L2)),
+     ?_assertEqual(queue:head(Q2), hd(L3)),
+     ?_assert(queue:is_empty(Q3))].
 
 -spec job_done(pid()) -> [ok].
 job_done(_Pid) ->
-    #{done := DL1} = job_center_serv:get_state(),
-    [job_center:add_job(X) || X <- [fun() -> Y end || Y <- lists:seq(1, 15)]],
-    L1 = [job_center:work_wanted() || _ <- lists:seq(1, 15)],
-    [job_center:job_done(Xx) || Xx <- lists:seq(16, 30)], 
-    #{done := DL2} = job_center_serv:get_state(),
-    [job_center:job_done(Wn) || {Wn, _} <- L1],
-    #{done := DL3} = job_center_serv:get_state(),
-    [?_assertEqual({[],[]}, {DL1, DL2}),
-     ?_assertEqual(L1, lists:sort(DL3))].
+    F1 = fun() -> 1 end,
+    F2 = fun() -> deux end,
+    1 = job_center:add_job(7,F1),
+    2 = job_center:add_job(3,F2), 
+    J1 = {N1,7,F1} = job_center:work_wanted(),
+    #{done:=L1} = job_center_serv:get_state(),
+    job_center:job_done(N1),
+    J2 = {N2,3,F2} = job_center:work_wanted(),
+    #{done:=L2} = job_center_serv:get_state(),
+    job_center:job_done(N2),
+    #{done:=L3} = job_center_serv:get_state(),
+    [?_assert([] == L1),
+     ?_assertEqual(J1, hd(L2)),
+     ?_assertEqual([J2,J1], L3)].
 
 -spec statistics(pid()) -> [ok].
 statistics(_Pid) ->
-    #{queue := Q1, in_progress := PL1, done := DL1} = job_center:statistics(),
-    [job_center:add_job(X) || X <- [fun() -> Y end || Y <- lists:seq(1, 15)]],
-    [job_center:work_wanted() || _ <- lists:seq(1, 10)],
-    [job_center:job_done(N) || N <- lists:seq(1, 5)],
-    #{queue := Q2, in_progress := PL2, done := DL2} = job_center:statistics(),
-    Qn = [Xn || {Xn, _} <- queue:to_list(Q2)],
-    PLn = [Yn || {Yn, _} <- PL2],
-    DLn = [Zn || {Zn, _} <- DL2],
+    F1 = fun() -> 1 end,
+    F2 = fun() -> deux end,
+    F3 = fun() -> three end,
+    #{queue:=Q1, in_progress:=P1, done:=D1} = job_center:statistics(),
+    1 = job_center:add_job(7,F1),
+    2 = job_center:add_job(3,F2), 
+    3 = job_center:add_job(9,F3),
+    J1 = {_N1,_T1,F1} = job_center:work_wanted(),
+    J2 = {N2,_T2,F2} = job_center:work_wanted(),
+    job_center:job_done(N2),
+    #{queue:=Q2, in_progress:=P2, done:=D2} = job_center:statistics(),
     [?_assert(queue:is_empty(Q1)),
-     ?_assertEqual([], PL1),
-     ?_assertEqual([], DL1),
-     ?_assertEqual(lists:seq(11, 15), Qn),
-     ?_assertEqual(lists:seq(6, 10), lists:sort(PLn)),
-     ?_assertEqual(lists:seq(1, 5),lists:sort(DLn))].
+     ?_assert([] =:= (P1 = D1 = [])),
+     ?_assertEqual({3,9,F3}, queue:head(Q2)),
+     ?_assertEqual(J1, hd(P2)),
+     ?_assertEqual(J2, hd(D2))].
 
 -spec supervise_workers(pid()) -> [ok].
 supervise_workers(_Pid) ->
-    [job_center:add_job(X) || X <- [fun() -> Y end || Y <- lists:seq(1, 5)]],
+    F1 = fun() -> 1 end,
+    F2 = fun() -> deux end,
+    F3 = fun() -> three end,
+    1 = job_center:add_job(7,F1),
+    2 = job_center:add_job(3,F2), 
+    3 = job_center:add_job(9,F3),
     Pid = spawn(fun() ->
         [job_center:work_wanted() || _ <- lists:seq(1, 3)],
         job_center:job_done(2),
         timer:sleep(500)
     end),
     timer:sleep(100),
-    #{queue:=Q1, in_progress:=P1, done:=L1} = job_center:statistics(),
+    #{queue:=Q1, in_progress:=P1, done:=D1} = job_center:statistics(),
     Val = erlang:exit(Pid, kill),
     timer:sleep(100),
-    #{queue:=Q2, in_progress:=P2, done:=L2} = job_center:statistics(),
+    #{queue:=Q2, in_progress:=P2, done:=D2} = job_center:statistics(),
     [?_assert(is_pid(Pid)),
-     ?_assertMatch([{4,_},{5,_}], queue:to_list(Q1)),
-     ?_assertMatch([{1,_},{3,_}], lists:sort(P1)),
-     ?_assertMatch([{2,_}], L1),
+     ?_assert(queue:is_empty(Q1)),
+     ?_assertEqual([{1,7,F1},{3,9,F3}], lists:sort(P1)),
+     ?_assertEqual({2,3,F2}, hd(D1)),
      ?_assert(Val),
-     ?_assertMatch([{1,_},{3,_},{4,_},{5,_}], lists:sort(queue:to_list(Q2))),
-     ?_assert([] == P2),
-     ?_assertEqual(L1, L2)].
+     ?_assertEqual([{1,7,F1},{3,9,F3}], lists:sort(queue:to_list(Q2))),
+     ?_assert([] =:= P2),
+     ?_assertEqual(D1, D2)].
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 %%% HELPER FUNCTIONS %%%

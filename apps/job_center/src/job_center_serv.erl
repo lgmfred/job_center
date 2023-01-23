@@ -46,9 +46,9 @@ stop() ->
 get_state() ->
     gen_server:call(?MODULE, get_state).
 
--spec add_job(fun()) -> non_neg_integer().
-add_job(Fun) ->
-    gen_server:call(?MODULE, {add_job, Fun}).
+-spec add_job({pos_integer(), fun()}) -> pos_integer().
+add_job(Job = {_JobTime, _Fun}) ->
+    gen_server:call(?MODULE, {add_job, Job}).
 
 -spec work_wanted() -> {integer(), fun()} | no.
 work_wanted() ->
@@ -76,12 +76,14 @@ init([]) ->
 
 -spec handle_call(atom() | tuple(),_, state()) ->
     {'reply',_,_} | {'stop','normal','stopped',_}.
-handle_call({add_job, Fun}, _From, State = #{int:=N, queue:=Q}) ->
-    {reply, N, State#{int:=N+1, queue:=queue:in({N, Fun}, Q)}};
+handle_call({add_job, {JobTime, Fun}}, _From, State)->
+    #{int:=N, queue:=Q} = State,
+    Q2 = queue:in({N, JobTime, Fun}, Q),
+    {reply, N, State#{int:=N+1, queue:=Q2}};
 handle_call(work_wanted, {Pid,_}, State) ->
     #{queue:=Q, refs:=Refs, in_progress:=L} = State,
     case queue:out(Q) of
-        {{value, Work = {N,_}}, Q2} -> 
+        {{value, Work = {N,_T,_F}}, Q2} -> 
             Ref = erlang:monitor(process, Pid),
             NewRefs = [{Ref,N}|Refs],
             L1 = [Work|L],
