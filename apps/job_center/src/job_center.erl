@@ -6,7 +6,7 @@
 -behaviour(application).
 
 -export([start/2, stop/1]).
--export([add_job/1, work_wanted/0, job_done/1, statistics/0]).
+-export([add_job/2, work_wanted/0, job_done/1, statistics/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Application behaviour
@@ -28,9 +28,9 @@ stop(_State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% @doc Add a job to the job queue
--spec add_job(fun()) -> non_neg_integer().
-add_job(Fun) ->
-    job_center_serv:add_job(Fun).
+-spec add_job(pos_integer(), fun()) -> pos_integer().
+add_job(JobTime, Fun) ->
+    job_center_serv:add_job({JobTime, Fun}).
 
 %% @doc Request work
 -spec work_wanted() -> {integer(), fun()} | no.
